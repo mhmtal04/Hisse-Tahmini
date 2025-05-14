@@ -10,7 +10,7 @@ st.title("Hisse Tahmin Uygulaması")
 symbol = st.text_input("Hisse kodunu girin (örnek: THYAO)", "")
 
 if symbol:
-    symbol += ".IS"
+    symbol += "THYAO.IS"
     st.write(f"{symbol} verisi indiriliyor...")
     data = yf.download(symbol, period="6mo")
 
