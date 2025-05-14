@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
 # Kullanıcıdan hisse kodu al (örneğin: THYAO, ASELS, SISE gibi)
-symbol = input("Hisse kodunu gir (örnek: THYAO): ")THYAO.upper() + ".IS"
+symbol = input("Hisse kodunu gir (örnek: THYAO): ").upper() + "THYAO.IS"
 
 # Veriyi indir
 print(f"{symbol} verisi indiriliyor...")
