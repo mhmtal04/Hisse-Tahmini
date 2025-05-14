@@ -26,9 +26,15 @@ if symbol:
     if data.empty:
         st.warning("Veri indirilemedi. Lütfen geçerli bir hisse kodu veya tarih aralığı girin.")
     else:
-        # Anlık fiyatı göster
-        current_price = data["Close"].iloc[-1]
-        st.info(f"Anlık Fiyat: {current_price:.2f} TL")
+        import numpy as np  # dosyada üst kısma eklenmeli
+
+# Anlık fiyatı güvenli şekilde al
+current_price = data["Close"].dropna().iloc[-1]
+
+if not np.isnan(current_price):
+    st.info(f"Anlık Fiyat: {current_price:.2f} TL")
+else:
+    st.warning("Anlık fiyat bilgisi mevcut değil.")
 
         # Kapanış fiyatı grafiği
         st.line_chart(data["Close"], use_container_width=True)
