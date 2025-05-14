@@ -30,7 +30,7 @@ if symbol:
         # Anlık fiyatı güvenli şekilde al
         current_price_series = data["Close"].dropna()
         if not current_price_series.empty:
-            current_price = current_price_series.iloc[-1]
+            current_price = float(current_price_series.iloc[-1])
             if not np.isnan(current_price):
                 st.info(f"Anlık Fiyat: {current_price:.2f} TL")
             else:
