@@ -70,7 +70,6 @@ volatility = data["Close"].pct_change().rolling(window=5).std().iloc[-1] * 100
 volatility_value = float(volatility)
 olasilik_katsayisi = min(max(volatility_value / 5, -1), 1)
 prediction_adjusted = prediction_raw + recent_diff * olasilik_katsayisi
-            # Tahmini fiyatı %10 limitlere göre düzelt
             upper_limit = current_price * 1.10
             lower_limit = current_price * 0.90
             predicted_price = max(min(prediction_adjusted, upper_limit), lower_limit)
