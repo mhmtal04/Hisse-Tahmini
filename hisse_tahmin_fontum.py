@@ -45,6 +45,11 @@ if symbol:
             mae = mean_absolute_error(y_test, preds)
             st.success(f"Model Ortalama Hata: ±{mae:.2f} TL")
 
+            # Son kapanış fiyatı
+            last_close = data["Close"].iloc[-1]
+            st.write(f"**Son kapanış fiyatı:** {last_close:.2f} TL")
+
+            # Yarınki tahmin
             latest_data = X.tail(1)
             prediction = model.predict(latest_data)[0]
             st.subheader("Yarınki tahmini kapanış fiyatı:")
