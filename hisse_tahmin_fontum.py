@@ -67,8 +67,8 @@ if symbol:
             # Olasılıklar denklemi etkisi (volatiliteye dayalı katsayı)
             recent_diff = data["Close"].iloc[-1] - data["Close"].iloc[-2]
             volatility = data["Close"].pct_change().rolling(window=5).std().iloc[-1] * 100
-            olasilik_katsayisi = min(max(volatility / 5, -1), 1)  # -1 ile 1 arasında sınırla
-
+            volatility_value = volatility if np.isscalar(volatility) else volatility.item()
+olasilik_katsayisi = min(max(volatility_value / 5, -1), 1)
             prediction_adjusted = prediction_raw + recent_diff * olasilik_katsayisi
 
             # Tahmini fiyatı %10 limitlere göre düzelt
