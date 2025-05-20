@@ -11,9 +11,18 @@ st.title("📊 HİSSE TAHMİN BOTU")
 
 symbol = st.text_input("Hisse kodunu girin (örnek: THYAO)", "")
 
-# Sabit tarih aralığı: Son 180 gün
-end_date = datetime.date.today()
-start_date = end_date - datetime.timedelta(days=180)
+today = datetime.date.today()
+
+# Kullanıcıya sadece tarih aralığı seçme opsiyonu
+col1, col2 = st.columns(2)
+with col1:
+    start_date = st.date_input("Başlangıç tarihi", today - datetime.timedelta(days=90))
+with col2:
+    end_date = st.date_input("Bitiş tarihi", today)
+
+if start_date > end_date:
+    st.error("Başlangıç tarihi, bitiş tarihinden büyük olamaz!")
+    st.stop()
 
 if symbol:
     symbol = symbol.upper() + ".IS"
@@ -21,7 +30,7 @@ if symbol:
     data = yf.download(symbol, start=start_date, end=end_date)
 
     if data.empty:
-        st.warning("Veri indirilemedi. Lütfen geçerli bir hisse kodu girin.")
+        st.warning("Veri indirilemedi. Lütfen geçerli bir hisse kodu ve tarih aralığı girin.")
     else:
         ticker = yf.Ticker(symbol)
         try:
