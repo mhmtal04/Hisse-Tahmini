@@ -7,7 +7,7 @@ import streamlit as st
 import datetime
 
 st.set_page_config(page_title="Gelişmiş Hisse Tahmin Uygulaması", layout="centered")
-st.title("📈 Bugün ve Yarın için Kapanış Fiyatı Tahmini (Gerçek Zamanlı Fiyat ve Olasılıklar Denklemi)")
+st.title("📈 HİSSE TAHMİN BOTU")
 
 symbol = st.text_input("Hisse kodunu girin (örnek: THYAO)", "")
 
@@ -83,6 +83,6 @@ if symbol:
             today_pred = max(min(today_pred, upper_limit), lower_limit)
             tomorrow_pred = max(min(tomorrow_pred, upper_limit), lower_limit)
 
-            st.subheader("Tahmin Sonuçları (Olasılıklar Denklemi ile):")
+            st.subheader("Tahmin Sonuçları:")
             st.write(f"Bugünün kapanış fiyatı tahmini: **{today_pred:.2f} TL**")
             st.write(f"Yarınki kapanış fiyatı tahmini: **{tomorrow_pred:.2f} TL**")
