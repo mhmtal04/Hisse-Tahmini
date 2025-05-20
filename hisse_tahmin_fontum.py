@@ -69,6 +69,7 @@ if symbol:
             volatility_value = float(volatility)
             olasilik_katsayisi = min(max(volatility_value / 5, -1), 1)
             prediction_adjusted = prediction_raw + recent_diff * olasilik_katsayisi
+            prediction_adjusted = float(prediction_adjusted)  # Hata önleme
 
             # Tahmini fiyatı %10 limitlere göre düzelt
             upper_limit = current_price * 1.10
@@ -78,6 +79,7 @@ if symbol:
             percent_change = ((predicted_price - current_price) / current_price) * 100
             percent_change = max(min(percent_change, 10), -10)
 
+            # Sonuçları göster
             st.subheader("Tahmin Sonucu (Olasılıklar Denklemi ile):")
             st.write(f"Yarınki tahmini kapanış fiyatı: **{predicted_price:.2f} TL**")
             if abs(percent_change) >= 9.9:
