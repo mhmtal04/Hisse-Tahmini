@@ -6,24 +6,22 @@ from sklearn.metrics import mean_absolute_error
 import streamlit as st
 import datetime
 
-st.set_page_config(page_title="Gelişmiş Hisse Tahmin Uygulaması", layout="centered")
-st.title("📈 HİSSE TAHMİN BOTU")
+st.set_page_config(page_title="Hisse Tahmin Botu", layout="centered")
+st.title("📊 Hisse Tahmin Botu")
 
 symbol = st.text_input("Hisse kodunu girin (örnek: THYAO)", "")
 
-col1, col2 = st.columns(2)
-with col1:
-    start_date = st.date_input("Başlangıç tarihi", datetime.date.today() - datetime.timedelta(days=180))
-with col2:
-    end_date = st.date_input("Bitiş tarihi", datetime.date.today())
+# Varsayılan: Son 3 ay
+end_date = datetime.date.today()
+start_date = end_date - datetime.timedelta(days=90)
 
 if symbol:
     symbol = symbol.upper() + ".IS"
-    st.write(f"**{symbol}** verisi indiriliyor...")
+    st.write(f"**{symbol}** verisi indiriliyor... ({start_date} - {end_date})")
     data = yf.download(symbol, start=start_date, end=end_date)
 
     if data.empty:
-        st.warning("Veri indirilemedi. Lütfen geçerli bir hisse kodu veya tarih aralığı girin.")
+        st.warning("Veri indirilemedi. Lütfen geçerli bir hisse kodu girin.")
     else:
         ticker = yf.Ticker(symbol)
         try:
@@ -31,21 +29,17 @@ if symbol:
             st.info(f"Gerçek Zamanlı Fiyat: {current_price:.2f} TL")
         except:
             st.warning("Gerçek zamanlı fiyat alınamadı.")
-            current_price = float(data["Close"].iloc[-1])
+            current_price = data["Close"].iloc[-1]
 
         # Teknik göstergeler
         data["MA5"] = data["Close"].rolling(window=5).mean()
         data["MA10"] = data["Close"].rolling(window=10).mean()
-
-        # Gerçek zamanlı fiyatı her satıra ekle (sabit, anlık fiyat)
         data["RealTimePrice"] = current_price
-
-        # Tahmin hedefi: bir sonraki gün kapanışı
         data["Target"] = data["Close"].shift(-1)
         data = data.dropna()
 
         if data.shape[0] < 20:
-            st.warning("Yeterli veri yok. Daha uzun zaman dilimi seçin.")
+            st.warning("Yeterli veri yok.")
         else:
             features = ["Close", "MA5", "MA10", "RealTimePrice"]
             X = data[features]
@@ -61,28 +55,29 @@ if symbol:
 
             latest_two = X.tail(2)
 
-            # Tahmin ham değerleri
             today_pred_raw = model.predict(latest_two.iloc[[0]])[0]
             tomorrow_pred_raw = model.predict(latest_two.iloc[[1]])[0]
 
-            # Son kapanış fiyatı farkı
-            recent_diff = float(data["Close"].iloc[-1] - data["Close"].iloc[-2])
+            # Olasılıklar denklemiyle düzeltme
+            recent_diff = data["Close"].iloc[-1] - data["Close"].iloc[-2]
+            volatility = data["Close"].pct_change().rolling(window=5).std().iloc[-1] * 100
+            katsayi = min(max(volatility / 5, -1), 1)
 
-            # 5 günlük volatilite (yüzde)
-            volatility = float(data["Close"].pct_change().rolling(window=5).std().iloc[-1] * 100)
-            volatility_factor = min(max(volatility / 5, -1), 1)
+            today_pred = today_pred_raw + recent_diff * katsayi
+            tomorrow_pred = tomorrow_pred_raw + recent_diff * katsayi
 
-            # Tahminleri volatiliteye göre ayarla
-            today_pred = float(today_pred_raw) + recent_diff * volatility_factor
-            tomorrow_pred = float(tomorrow_pred_raw) + recent_diff * volatility_factor
-
-            # %10 limitler içinde düzelt
+            # BIST %10 limiti
             upper_limit = current_price * 1.10
             lower_limit = current_price * 0.90
-
             today_pred = max(min(today_pred, upper_limit), lower_limit)
             tomorrow_pred = max(min(tomorrow_pred, upper_limit), lower_limit)
 
             st.subheader("Tahmin Sonuçları:")
             st.write(f"Bugünün kapanış fiyatı tahmini: **{today_pred:.2f} TL**")
             st.write(f"Yarınki kapanış fiyatı tahmini: **{tomorrow_pred:.2f} TL**")
+
+            with st.expander("Olasılıklar Denklemi Nedir?"):
+                st.markdown("""
+                Bu model, yalnızca geçmiş verilere değil, aynı zamanda hisse senedinin son volatilitesine (oynaklık) ve 
+                fiyat farklarına göre tahminleri dinamik olarak düzeltir. Böylece daha gerçekçi ve güncel tahminler sağlar.
+                """)
