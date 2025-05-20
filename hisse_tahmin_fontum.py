@@ -11,9 +11,9 @@ st.title("📊 HİSSE TAHMİN BOTU")
 
 symbol = st.text_input("Hisse kodunu girin (örnek: THYAO)", "")
 
-# Sabit tarih aralığı: Bu yıl 1 Ocak'tan bugüne
-start_date = datetime.date(datetime.date.today().year, 1, 1)
+# Sabit tarih aralığı: Son 180 gün
 end_date = datetime.date.today()
+start_date = end_date - datetime.timedelta(days=180)
 
 if symbol:
     symbol = symbol.upper() + ".IS"
