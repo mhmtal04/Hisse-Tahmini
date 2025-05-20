@@ -6,18 +6,18 @@ from sklearn.metrics import mean_absolute_error
 import streamlit as st
 import datetime
 
-st.set_page_config(page_title="Gelişmiş Hisse Tahmin Uygulaması", layout="centered")
-st.title("📈 Bugün ve Yarın için Kapanış Fiyatı Tahmini (Gerçek Zamanlı Fiyat ve Olasılıklar Denklemi)")
+st.set_page_config(page_title="Hisse Tahmin Botu", layout="centered")
+st.title("📊 Hisse Tahmin Botu")
 
 symbol = st.text_input("Hisse kodunu girin (örnek: THYAO)", "")
 
-# Sabit tarih aralığı: Son 90 gün
+# Son 3 aylık tarih aralığı
 end_date = datetime.date.today()
 start_date = end_date - datetime.timedelta(days=90)
 
 if symbol:
     symbol = symbol.upper() + ".IS"
-    st.write(f"**{symbol}** verisi indiriliyor ({start_date} - {end_date})...")
+    st.write(f"Veri indiriliyor: {symbol} ({start_date} - {end_date})")
     data = yf.download(symbol, start=start_date, end=end_date)
 
     if data.empty:
@@ -29,7 +29,7 @@ if symbol:
             st.info(f"Gerçek Zamanlı Fiyat: {current_price:.2f} TL")
         except:
             st.warning("Gerçek zamanlı fiyat alınamadı.")
-            current_price = float(data["Close"].iloc[-1])
+            current_price = data["Close"].iloc[-1]
 
         # Teknik göstergeler
         data["MA5"] = data["Close"].rolling(window=5).mean()
@@ -38,8 +38,8 @@ if symbol:
         data["Target"] = data["Close"].shift(-1)
         data = data.dropna()
 
-        if data.shape[0] < 20:
-            st.warning("Yeterli veri yok.")
+        if len(data) < 20:
+            st.warning("Yeterli veri yok. Daha uzun tarih aralığı seçin.")
         else:
             features = ["Close", "MA5", "MA10", "RealTimePrice"]
             X = data[features]
@@ -53,25 +53,38 @@ if symbol:
             mae = mean_absolute_error(y_test, preds)
             st.success(f"Model Ortalama Hata: ±{mae:.2f} TL")
 
-            latest_two = X.tail(2)
+            # Tahmin: bugün ve yarın
+            latest_two = X.tail(2).copy()
+            today_pred_raw = model.predict([latest_two.iloc[0]])[0]
+            tomorrow_pred_raw = model.predict([latest_two.iloc[1]])[0]
 
-            # Tahmin ham değerleri
-            today_pred_raw = model.predict(latest_two.iloc[[0]])[0]
-            tomorrow_pred_raw = model.predict(latest_two.iloc[[1]])[0]
+            # Olasılıklar denklemi düzeltmesi
+            if len(data) >= 6:
+                recent_diff = data["Close"].iloc[-1] - data["Close"].iloc[-2]
+                volatility = data["Close"].pct_change().rolling(window=5).std().iloc[-1] * 100
+                katsayi = min(max(volatility / 5, -1), 1)
 
-            # Son fiyat farkı ve volatilite
-            recent_diff = float(data["Close"].iloc[-1] - data["Close"].iloc[-2])
-            volatility = float(data["Close"].pct_change().rolling(window=5).std().iloc[-1] * 100)
-            volatility_factor = min(max(volatility / 5, -1), 1)
+                today_pred = today_pred_raw + recent_diff * katsayi
+                tomorrow_pred = tomorrow_pred_raw + recent_diff * katsayi
+            else:
+                today_pred = today_pred_raw
+                tomorrow_pred = tomorrow_pred_raw
 
-            today_pred = today_pred_raw + recent_diff * volatility_factor
-            tomorrow_pred = tomorrow_pred_raw + recent_diff * volatility_factor
-
+            # BIST limiti (%10)
             upper_limit = current_price * 1.10
             lower_limit = current_price * 0.90
-            today_pred = max(min(today_pred, upper_limit), lower_limit)
-            tomorrow_pred = max(min(tomorrow_pred, upper_limit), lower_limit)
 
-            st.subheader("Tahmin Sonuçları (Olasılıklar Denklemi ile):")
-            st.write(f"Bugünün kapanış fiyatı tahmini: **{today_pred:.2f} TL**")
-            st.write(f"Yarınki kapanış fiyatı tahmini: **{tomorrow_pred:.2f} TL**")
+            today_pred = float(max(min(today_pred, upper_limit), lower_limit))
+            tomorrow_pred = float(max(min(tomorrow_pred, upper_limit), lower_limit))
+
+            st.subheader("Tahmin Sonuçları:")
+            st.write(f"Bugün için kapanış tahmini: **{today_pred:.2f} TL**")
+            st.write(f"Yarın için kapanış tahmini: **{tomorrow_pred:.2f} TL**")
+
+            with st.expander("Model Açıklaması"):
+                st.markdown("""
+                - **Model:** Random Forest (100 ağaç)
+                - **Girdi:** Son fiyatlar, hareketli ortalamalar, gerçek zamanlı fiyat
+                - **Çıkış:** Kapanış tahmini
+                - **Düzenleme:** Volatilite ve son gün farkına göre ayarlama (olasılıklar denklemi)
+                """)
