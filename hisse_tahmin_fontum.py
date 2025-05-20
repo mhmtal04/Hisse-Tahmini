@@ -11,19 +11,9 @@ st.title("📊 HİSSE TAHMİN BOTU")
 
 symbol = st.text_input("Hisse kodunu girin (örnek: THYAO)", "")
 
-# Yılın yarısı seçimi
-half = st.selectbox("Tahmin için tarih aralığı seçin:", 
-                    ("1 Ocak - 30 Haziran", "1 Temmuz - Bugün"))
-
-today = datetime.date.today()
-year = today.year
-
-if half == "1 Ocak - 30 Haziran":
-    start_date = datetime.date(year, 1, 1)
-    end_date = datetime.date(year, 6, 30)
-else:  # 1 Temmuz - Bugün
-    start_date = datetime.date(year, 7, 1)
-    end_date = today
+# Sabit tarih aralığı: Bu yıl 1 Ocak'tan bugüne
+start_date = datetime.date(datetime.date.today().year, 1, 1)
+end_date = datetime.date.today()
 
 if symbol:
     symbol = symbol.upper() + ".IS"
@@ -41,6 +31,7 @@ if symbol:
             st.warning("Gerçek zamanlı fiyat alınamadı.")
             current_price = float(data["Close"].iloc[-1])
 
+        # Teknik göstergeler
         data["MA5"] = data["Close"].rolling(window=5).mean()
         data["MA10"] = data["Close"].rolling(window=10).mean()
         data["RealTimePrice"] = current_price
@@ -64,9 +55,11 @@ if symbol:
 
             latest_two = X.tail(2)
 
+            # Tahmin ham değerleri
             today_pred_raw = model.predict(latest_two.iloc[[0]])[0]
             tomorrow_pred_raw = model.predict(latest_two.iloc[[1]])[0]
 
+            # Son fiyat farkı ve volatilite
             recent_diff = float(data["Close"].iloc[-1] - data["Close"].iloc[-2])
             volatility = float(data["Close"].pct_change().rolling(window=5).std().iloc[-1] * 100)
             volatility_factor = min(max(volatility / 5, -1), 1)
