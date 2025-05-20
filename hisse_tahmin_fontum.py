@@ -7,7 +7,7 @@ import streamlit as st
 import datetime
 
 st.set_page_config(page_title="Gelişmiş Hisse Tahmin Uygulaması", layout="centered")
-st.title("📈 Bugün ve Yarın için Kapanış Fiyatı Tahmini (Olasılıklar Denklemi ile)")
+st.title("📈 Bugün ve Yarın için Kapanış Fiyatı Tahmini (Gerçek Zamanlı Fiyat ve Olasılıklar Denklemi)")
 
 symbol = st.text_input("Hisse kodunu girin (örnek: THYAO)", "")
 
@@ -31,17 +31,13 @@ if symbol:
             st.info(f"Gerçek Zamanlı Fiyat: {current_price:.2f} TL")
         except:
             st.warning("Gerçek zamanlı fiyat alınamadı.")
-            current_price = data["Close"].iloc[-1]
+            current_price = float(data["Close"].iloc[-1])
 
         # Teknik göstergeler
         data["MA5"] = data["Close"].rolling(window=5).mean()
         data["MA10"] = data["Close"].rolling(window=10).mean()
 
-        # Volatilite: son 5 günlük yüzde değişim standart sapması (yüzde olarak)
-        data["Pct_Change"] = data["Close"].pct_change()
-        volatility = data["Pct_Change"].rolling(window=5).std() * 100
-
-        # Gerçek zamanlı fiyatı her satıra ekle (sabit)
+        # Gerçek zamanlı fiyatı her satıra ekle (sabit, anlık fiyat)
         data["RealTimePrice"] = current_price
 
         # Tahmin hedefi: bir sonraki gün kapanışı
@@ -63,19 +59,22 @@ if symbol:
             mae = mean_absolute_error(y_test, preds)
             st.success(f"Model Ortalama Hata: ±{mae:.2f} TL")
 
-            # Son iki satırdan bugünün ve yarının kapanışını tahmin et
             latest_two = X.tail(2)
+
+            # Tahmin ham değerleri
             today_pred_raw = model.predict(latest_two.iloc[[0]])[0]
             tomorrow_pred_raw = model.predict(latest_two.iloc[[1]])[0]
 
-            # Volatilite katsayısı (olasılıklar denklemi için)
-            recent_diff = data["Close"].iloc[-1] - data["Close"].iloc[-2]
-            recent_volatility = volatility.iloc[-1]
-            volatility_factor = min(max(recent_volatility / 5, -1), 1)
+            # Son kapanış fiyatı farkı
+            recent_diff = float(data["Close"].iloc[-1] - data["Close"].iloc[-2])
+
+            # 5 günlük volatilite (yüzde)
+            volatility = float(data["Close"].pct_change().rolling(window=5).std().iloc[-1] * 100)
+            volatility_factor = min(max(volatility / 5, -1), 1)
 
             # Tahminleri volatiliteye göre ayarla
-            today_pred = today_pred_raw + recent_diff * volatility_factor
-            tomorrow_pred = tomorrow_pred_raw + recent_diff * volatility_factor
+            today_pred = float(today_pred_raw) + recent_diff * volatility_factor
+            tomorrow_pred = float(tomorrow_pred_raw) + recent_diff * volatility_factor
 
             # %10 limitler içinde düzelt
             upper_limit = current_price * 1.10
@@ -84,21 +83,6 @@ if symbol:
             today_pred = max(min(today_pred, upper_limit), lower_limit)
             tomorrow_pred = max(min(tomorrow_pred, upper_limit), lower_limit)
 
-            # Yüzde değişim hesapla
-            today_pct_change = ((today_pred - current_price) / current_price) * 100
-            tomorrow_pct_change = ((tomorrow_pred - current_price) / current_price) * 100
-
             st.subheader("Tahmin Sonuçları (Olasılıklar Denklemi ile):")
-            st.write(f"Bugünün kapanış fiyatı tahmini: **{today_pred:.2f} TL** ({today_pct_change:+.2f}%)")
-            st.write(f"Yarınki kapanış fiyatı tahmini: **{tomorrow_pred:.2f} TL** ({tomorrow_pct_change:+.2f}%)")
-
-            if abs(today_pct_change) >= 9.9 or abs(tomorrow_pct_change) >= 9.9:
-                st.warning("Tahmin %10 BIST sınırına ulaştı.")
-
-            with st.expander("Olasılıklar Denklemi Nedir?"):
-                st.markdown("""
-                Bu tahmin modeli yalnızca makine öğrenmesiyle değil,
-                aynı zamanda geçmiş fiyat hareketleri ve volatiliteye göre
-                tahmini akıllı şekilde düzeltir. Böylece piyasanın oynaklığına
-                göre tahmin dinamik olarak uyarlanır.
-                """)
+            st.write(f"Bugünün kapanış fiyatı tahmini: **{today_pred:.2f} TL**")
+            st.write(f"Yarınki kapanış fiyatı tahmini: **{tomorrow_pred:.2f} TL**")
