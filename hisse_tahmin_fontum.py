@@ -72,12 +72,12 @@ olasilik_katsayisi = min(max(volatility_value / 5, -1), 1)
 prediction_adjusted = prediction_raw + recent_diff * olasilik_katsayisi
 
 # Tahmini fiyatı %10 limitlere göre düzelt
-            upper_limit = current_price * 1.10
-            lower_limit = current_price * 0.90
-            predicted_price = max(min(prediction_adjusted, upper_limit), lower_limit)
+upper_limit = current_price * 1.10
+lower_limit = current_price * 0.90
+predicted_price = max(min(prediction_adjusted, upper_limit), lower_limit)
 
-            percent_change = ((predicted_price - current_price) / current_price) * 100
-            percent_change = max(min(percent_change, 10), -10)
+percent_change = ((predicted_price - current_price) / current_price) * 100
+percent_change = max(min(percent_change, 10), -10)
 
             st.subheader("Tahmin Sonucu (Olasılıklar Denklemi ile):")
             st.write(f"Yarınki tahmini kapanış fiyatı: **{predicted_price:.2f} TL**")
