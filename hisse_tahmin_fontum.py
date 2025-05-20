@@ -6,8 +6,12 @@ from sklearn.metrics import mean_absolute_error
 import streamlit as st
 import datetime
 
-# XGBoost
-import xgboost as xgb
+# XGBoost'u isteğe bağlı yükleme denemesi
+try:
+    import xgboost as xgb
+    xgboost_available = True
+except ImportError:
+    xgboost_available = False
 
 # LSTM için
 import tensorflow as tf
@@ -16,7 +20,7 @@ from tensorflow.keras.layers import LSTM, Dense
 from sklearn.preprocessing import MinMaxScaler
 
 st.set_page_config(page_title="Hisse Tahmin Uygulaması", layout="centered")
-st.title("📈 Yarınki Fiyat Tahmini (RandomForest, XGBoost veya LSTM)")
+st.title("📈 Yarınki Fiyat Tahmini (RandomForest, LSTM ve Opsiyonel XGBoost)")
 
 symbol = st.text_input("Hisse kodunu girin (örnek: THYAO)", "")
 
@@ -27,7 +31,12 @@ with col1:
 with col2:
     end_date = st.date_input("Bitiş tarihi", datetime.date.today() + datetime.timedelta(days=1))
 
-model_option = st.selectbox("Model seçin:", ("RandomForest", "XGBoost", "LSTM"))
+# Model seçenekleri
+models = ["RandomForest", "LSTM"]
+if xgboost_available:
+    models.insert(1, "XGBoost")  # XGBoost varsa ekle
+
+model_option = st.selectbox("Model seçin:", models)
 
 if symbol:
     symbol = symbol.upper() + ".IS"
@@ -46,7 +55,7 @@ if symbol:
             st.warning("Gerçek zamanlı fiyat alınamadı, son kapanış fiyatı kullanılacak.")
             current_price = data["Close"].dropna().iloc[-1]
 
-        # Basit teknik göstergeler
+        # Teknik göstergeler
         data["MA5"] = data["Close"].rolling(window=5).mean()
         data["MA10"] = data["Close"].rolling(window=10).mean()
         data["Target"] = data["Close"].shift(-1)
@@ -66,6 +75,7 @@ if symbol:
                     from sklearn.ensemble import RandomForestRegressor
                     model = RandomForestRegressor(random_state=42)
                 else:
+                    # XGBoost seçildi, kullanıma hazır
                     model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=100, random_state=42)
 
                 model.fit(X_train, y_train)
@@ -112,7 +122,7 @@ if symbol:
                 prediction_raw_scaled = model.predict(last_sequence)[0][0]
                 prediction_raw = scaler.inverse_transform([[prediction_raw_scaled]])[0][0]
 
-            # Olasılıklar Denklemi
+            # Olasılıklar Denklemi ile düzeltme
             recent_diff = data["Close"].iloc[-1] - data["Close"].iloc[-2]
             volatility = data["Close"].pct_change().rolling(window=5).std().iloc[-1] * 100
             volatility_value = float(volatility)
@@ -127,7 +137,7 @@ if symbol:
             percent_change = ((predicted_price - current_price) / current_price) * 100
             percent_change = max(min(percent_change, 10), -10)
 
-            # Tahmin Sonuçları
+            # Sonuçları göster
             st.subheader("Tahmin Sonucu (Olasılıklar Denklemi ile):")
             st.write(f"Yarınki tahmini kapanış fiyatı: **{predicted_price:.2f} TL**")
             if abs(percent_change) >= 9.9:
